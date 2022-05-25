@@ -8,12 +8,17 @@ ENV BUILD_DEPS autoconf automake file g++ gcc libc-dev libtool make nasm pkgconf
 
 FROM base AS builder
 
+RUN addgroup -g 10101 mk \
+	&& adduser -h /misskey -s /bin/sh -D -G mk -u 10101 mk
+
 COPY . ./
 
+RUN chown -R mk:mk .
+
 RUN apk add --no-cache $BUILD_DEPS && \
-    git submodule update --init && \
-    yarn install && \
-    yarn build && \
+    su - mk -c 'git submodule update --init' && \
+    su - mk -c 'yarn install' && \
+    su - mk -c 'yarn build' && \
     rm -rf .git
 
 FROM base AS runner
@@ -31,5 +36,5 @@ COPY --from=builder /misskey/packages/backend/built ./packages/backend/built
 COPY --from=builder /misskey/packages/client/node_modules ./packages/client/node_modules
 COPY . ./
 
-CMD ["npm", "run", "migrateandstart"]
+CMD ["su", "-", "mk", "-c", "npm run migrateandstart"]
 
